@@ -1,11 +1,10 @@
 import { useMemo, useState } from "react";
-import { MAPS } from "../data/maps";
 import { OPERATORS, ROLE_LABELS, type Side } from "../data/operators";
-import { baseRate, predictSites } from "../lib/model";
+import { baseRate, predictSites, siteLossStreak } from "../lib/model";
 import { optimize, type Lineup } from "../lib/optimizer";
 import { uid } from "../lib/store";
 import type { LiveMatch } from "../lib/types";
-import { WinMeter, edgeLabel, mapById, opName, pct, siteName, type ViewProps } from "./common";
+import { WinMeter, edgeLabel, mapById, mapsOf, opName, pct, siteName, type ViewProps } from "./common";
 
 export default function MatchView({ state, setState, goSquad }: ViewProps & { goSquad: () => void }) {
   const m = state.match;
@@ -14,7 +13,8 @@ export default function MatchView({ state, setState, goSquad }: ViewProps & { go
 }
 
 function StartMatch({ state, setState, goSquad }: ViewProps & { goSquad: () => void }) {
-  const [mapId, setMapId] = useState(MAPS[0].id);
+  const maps = mapsOf(state);
+  const [mapId, setMapId] = useState(maps[0].id);
   const [side, setSide] = useState<Side>("attack");
 
   const start = () => {
@@ -36,7 +36,7 @@ function StartMatch({ state, setState, goSquad }: ViewProps & { goSquad: () => v
       )}
       <label className="label">Map</label>
       <div className="chips">
-        {MAPS.map((mp) => (
+        {maps.map((mp) => (
           <button key={mp.id} className={`chip ${mp.id === mapId ? "on" : ""}`} onClick={() => setMapId(mp.id)}>
             {mp.name}
           </button>
@@ -64,7 +64,8 @@ function SideToggle({ side, onChange }: { side: Side; onChange: (s: Side) => voi
 }
 
 function LiveMatchView({ state, setState, m }: ViewProps & { m: LiveMatch }) {
-  const map = mapById(m.mapId)!;
+  const maps = mapsOf(state);
+  const map = mapById(maps, m.mapId)!;
   const { players, logs, settings } = state;
   const [pending, setPending] = useState<boolean | null>(null); // attack: won? waiting for site
   const [showBans, setShowBans] = useState(false);
@@ -86,10 +87,15 @@ function LiveMatchView({ state, setState, m }: ViewProps & { m: LiveMatch }) {
     if (m.side !== "attack") return null;
     const prev =
       prevLog && prevLog.side === "attack" && prevLog.siteId
-        ? { siteId: prevLog.siteId, defendersWon: !prevLog.won, sameOps: m.sameOps }
+        ? {
+            siteId: prevLog.siteId,
+            defendersWon: !prevLog.won,
+            lossStreak: siteLossStreak(matchLogs, matchLogs.indexOf(prevLog)),
+            sameOps: m.sameOps,
+          }
         : undefined;
     return predictSites(logs, settings, m.mapId, siteIds, prev);
-  }, [m.side, m.mapId, m.sameOps, logs, settings, prevLog, siteIds.join()]);
+  }, [m.side, m.mapId, m.sameOps, logs, settings, prevLog, matchLogs.length, siteIds.join()]);
 
   const common = {
     side: m.side,
@@ -220,7 +226,7 @@ function LiveMatchView({ state, setState, m }: ViewProps & { m: LiveMatch }) {
           )}
           <p className="hint">
             {prevLog?.siteId && prevLog.side === "attack"
-              ? `Last round was ${siteName(m.mapId, prevLog.siteId)} and they ${prevLog.won ? "lost" : "won"} it.`
+              ? `Last round was ${siteName(maps, m.mapId, prevLog.siteId)} and they ${prevLog.won ? "lost" : "won"} it.`
               : "Log the site after each attack round and this gets sharper."}
           </p>
         </div>

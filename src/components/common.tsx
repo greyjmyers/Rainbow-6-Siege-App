@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
-import { MAPS } from "../data/maps";
+import { resolveMaps, type GameMap } from "../data/maps";
 import { OPERATORS } from "../data/operators";
 import type { AppState } from "../lib/types";
 
@@ -9,9 +9,10 @@ export interface ViewProps {
 }
 
 export const opName = (id: string) => OPERATORS.find((o) => o.id === id)?.name ?? id;
-export const mapById = (id: string) => MAPS.find((m) => m.id === id);
-export const siteName = (mapId: string, siteId?: string) =>
-  mapById(mapId)?.sites.find((s) => s.id === siteId)?.name ?? "—";
+export const mapsOf = (state: AppState) => resolveMaps(state.maps);
+export const mapById = (maps: GameMap[], id: string) => maps.find((m) => m.id === id);
+export const siteName = (maps: GameMap[], mapId: string, siteId?: string) =>
+  mapById(maps, mapId)?.sites.find((s) => s.id === siteId)?.name ?? "—";
 
 export const pct = (p: number) => `${Math.round(p * 100)}%`;
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { baseRate, playerOpEdge, predictSites } from "./model";
+import { baseRate, playerOpEdge, predictSites, siteLossStreak } from "./model";
 import { optimize } from "./optimizer";
 import { DEFAULT_SETTINGS } from "./store";
 import type { Player, RoundLog } from "./types";
@@ -159,5 +159,49 @@ describe("optimize", () => {
     const [best] = optimize({ ...base, settings });
     const hard = best.slots.filter((s) => ["thermite", "hibana", "maverick", "ace"].includes(s.opId));
     expect(hard.length).toBe(2);
+  });
+});
+
+describe("run-it-back after losses (Nighthaven Labs, 25 Sep)", () => {
+  // We attacked rounds 1–3 and won all three: top floor, top floor again, then they rotated to basement.
+  const nh = (n: number, siteId: string) =>
+    round({ mapId: "nighthaven-labs", matchId: "nh", round: n, siteId, won: true });
+  const sites = ["top", "g1", "g2", "base"];
+
+  it("counts consecutive losses on the same site", () => {
+    const rounds = [nh(1, "top"), nh(2, "top"), nh(3, "base")];
+    expect(siteLossStreak(rounds, 0)).toBe(1);
+    expect(siteLossStreak(rounds, 1)).toBe(2);
+    expect(siteLossStreak(rounds, 2)).toBe(1);
+  });
+
+  it("expects a run-back after one loss and a rotation after two", () => {
+    const once = predictSites([], DEFAULT_SETTINGS, "nighthaven-labs", sites, {
+      siteId: "top",
+      defendersWon: false,
+      lossStreak: 1,
+    });
+    const twice = predictSites([], DEFAULT_SETTINGS, "nighthaven-labs", sites, {
+      siteId: "top",
+      defendersWon: false,
+      lossStreak: 2,
+    });
+    expect(once.top).toBeGreaterThan(0.5);
+    expect(twice.top).toBeLessThan(0.25);
+  });
+
+  it("learns the pattern from logged matches", () => {
+    const history = [nh(1, "top"), nh(2, "top"), nh(3, "base")];
+    const learned = predictSites(history, DEFAULT_SETTINGS, "nighthaven-labs", sites, {
+      siteId: "g1",
+      defendersWon: false,
+      lossStreak: 1,
+    });
+    const prior = predictSites([], DEFAULT_SETTINGS, "nighthaven-labs", sites, {
+      siteId: "g1",
+      defendersWon: false,
+      lossStreak: 1,
+    });
+    expect(learned.g1).toBeGreaterThan(prior.g1);
   });
 });

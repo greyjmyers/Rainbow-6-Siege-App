@@ -56,7 +56,7 @@ export function slug(name: string): string {
     .replace(/(^-|-$)/g, "");
 }
 
-// Roster is editable in-app (custom operators) so new seasons don't need a code change.
+// New operators each season are added here.
 export const OPERATORS: Operator[] = [
   atk("Sledge", ["soft-breach", "entry", "vertical"]),
   atk("Thatcher", ["anti-gadget"]),

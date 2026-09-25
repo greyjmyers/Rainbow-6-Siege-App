@@ -156,7 +156,7 @@ export function predictSites(
   settings: Settings,
   mapId: string,
   siteIds: string[],
-  prev?: { siteId: string; defendersWon: boolean; sameOps?: SameOps },
+  prev?: { siteId: string; defendersWon: boolean; lossStreak?: number; sameOps?: SameOps },
 ): Record<string, number> {
   // Prior: how popular each site is on this map, spread over SITE_META_STRENGTH pseudo-rounds.
   let meta = siteIds.map((id) => settings.siteMeta[`${mapId}:${id}`] ?? 1);
@@ -175,7 +175,7 @@ export function predictSites(
 
   if (!prev || !(prev.siteId in freq)) return freq;
 
-  let pRepeat = repeatRate(logs, settings, prev.defendersWon);
+  let pRepeat = repeatRate(logs, settings, prev.defendersWon, prev.lossStreak);
   // Same defender operators as last round is a strong run-it-back tell; a full swap is the opposite.
   if (prev.sameOps === "same") pRepeat = sigmoid(logit(pRepeat) + Math.log(settings.sameOpsOdds));
   if (prev.sameOps === "changed") pRepeat = sigmoid(logit(pRepeat) - Math.log(settings.sameOpsOdds));
@@ -189,8 +189,38 @@ export function predictSites(
 }
 
 /** Learned from consecutive attack rounds in the same match, shrunk to the settings prior. */
-export function repeatRate(logs: RoundLog[], settings: Settings, defendersWon: boolean) {
-  const prior = defendersWon ? settings.repeatAfterDefWin : settings.repeatAfterDefLoss;
+type RepeatCase = "defWin" | "defLoss" | "defLoss2";
+
+function repeatCase(defendersWon: boolean, lossStreak: number): RepeatCase {
+  return defendersWon ? "defWin" : lossStreak >= 2 ? "defLoss2" : "defLoss";
+}
+
+/** Consecutive rounds, ending at `rounds[i]`, that the defenders lost on the same site. */
+export function siteLossStreak(rounds: RoundLog[], i: number) {
+  let n = 0;
+  for (let j = i; j >= 0; j--) {
+    const r = rounds[j];
+    if (!r.won || r.siteId !== rounds[i].siteId) break;
+    if (j < i && rounds[j + 1].round !== r.round + 1) break;
+    n++;
+  }
+  return n;
+}
+
+/**
+ * P(defenders stay on the previous site), learned from consecutive attack
+ * rounds in the same match and shrunk to the settings prior. Losing a site
+ * once and losing it twice in a row are separate cases: teams often run a
+ * lost site back once, then rotate.
+ */
+export function repeatRate(logs: RoundLog[], settings: Settings, defendersWon: boolean, lossStreak = 1) {
+  const want = repeatCase(defendersWon, lossStreak);
+  const prior =
+    want === "defWin"
+      ? settings.repeatAfterDefWin
+      : want === "defLoss2"
+        ? settings.repeatAfterDefLoss2
+        : settings.repeatAfterDefLoss;
   const byMatch = new Map<string, RoundLog[]>();
   for (const l of logs) {
     if (l.side !== "attack" || !l.siteId) continue;
@@ -207,7 +237,7 @@ export function repeatRate(logs: RoundLog[], settings: Settings, defendersWon: b
         b = rounds[i];
       if (b.round !== a.round + 1) continue;
       // We lost the round on attack ⇔ the defenders won it.
-      if (!a.won !== defendersWon) continue;
+      if (repeatCase(!a.won, siteLossStreak(rounds, i - 1)) !== want) continue;
       const k = Math.min(logWeight(a, settings.importWeight), logWeight(b, settings.importWeight));
       n += k;
       if (a.siteId === b.siteId) repeats += k;

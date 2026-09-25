@@ -1,15 +1,38 @@
 import { useState } from "react";
-import { MAPS } from "../data/maps";
+import type { GameMap } from "../data/maps";
 import { ROLE_LABELS, type Role, type Side } from "../data/operators";
 import { SITE_META } from "../lib/model";
 import { DEFAULT_SETTINGS, emptyState, parseState } from "../lib/store";
 import type { CompRule, Settings } from "../lib/types";
-import type { ViewProps } from "./common";
+import { mapsOf, type ViewProps } from "./common";
+import { uid } from "../lib/store";
 
 export default function SetupView({ state, setState }: ViewProps) {
   const s = state.settings;
-  const [mapId, setMapId] = useState(MAPS[0].id);
-  const map = MAPS.find((m) => m.id === mapId)!;
+  const maps = mapsOf(state);
+  const [mapId, setMapId] = useState(maps[0].id);
+  const map = maps.find((m) => m.id === mapId) ?? maps[0];
+
+  // Saving a map stores the whole map as an override keyed by id (site ids are kept, so history stays attached).
+  const saveMap = (next: GameMap) =>
+    setState((st) => ({ ...st, maps: [...(st.maps ?? []).filter((m) => m.id !== next.id), next] }));
+
+  const addMap = () => {
+    const name = prompt("Map name")?.trim();
+    if (!name) return;
+    const id = `custom-${uid()}`;
+    saveMap({
+      id,
+      name,
+      sites: [
+        { id: "s1", floor: "2F", name: "Site 1" },
+        { id: "s2", floor: "1F", name: "Site 2" },
+        { id: "s3", floor: "1F", name: "Site 3" },
+        { id: "s4", floor: "B", name: "Site 4" },
+      ],
+    });
+    setMapId(id);
+  };
 
   const setSettings = (fn: (x: Settings) => Settings) =>
     setState((st) => ({ ...st, settings: fn(st.settings) }));
@@ -21,11 +44,11 @@ export default function SetupView({ state, setState }: ViewProps) {
     }));
 
   const siteMin = (siteId: string, role: Role) =>
-    s.siteRules[`${mapId}:${siteId}`]?.find((r) => r.role === role)?.min;
+    s.siteRules[`${map.id}:${siteId}`]?.find((r) => r.role === role)?.min;
 
   const setSiteMin = (siteId: string, side: Side, role: Role, min: number | undefined) =>
     setSettings((x) => {
-      const key = `${mapId}:${siteId}`;
+      const key = `${map.id}:${siteId}`;
       const base = x.rules[side].find((r) => r.role === role)!;
       const others = (x.siteRules[key] ?? []).filter((r) => r.role !== role);
       const next = min === undefined ? others : [...others, { ...base, min }];
@@ -101,13 +124,40 @@ export default function SetupView({ state, setState }: ViewProps) {
           How often each site gets picked (your starting belief for attack predictions — logged rounds refine it), and
           any site that needs more than the default, e.g. two hard breachers.
         </p>
-        <select value={mapId} onChange={(e) => setMapId(e.target.value)}>
-          {MAPS.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.name}
-            </option>
+        <div className="add-row">
+          <select value={map.id} onChange={(e) => setMapId(e.target.value)}>
+            {maps.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
+              </option>
+            ))}
+          </select>
+          <button className="ghost" onClick={addMap}>
+            + Map
+          </button>
+        </div>
+        <div className="site-edit">
+          {map.sites.map((site, i) => (
+            <div className="site-edit-row" key={site.id}>
+              <input
+                className="floor"
+                value={site.floor}
+                maxLength={3}
+                aria-label="Floor"
+                onChange={(e) =>
+                  saveMap({ ...map, sites: map.sites.map((x, j) => (j === i ? { ...x, floor: e.target.value } : x)) })
+                }
+              />
+              <input
+                value={site.name}
+                aria-label="Site name"
+                onChange={(e) =>
+                  saveMap({ ...map, sites: map.sites.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)) })
+                }
+              />
+            </div>
           ))}
-        </select>
+        </div>
         <table className="tbl">
           <thead>
             <tr>
@@ -125,11 +175,11 @@ export default function SetupView({ state, setState }: ViewProps) {
                 </td>
                 <td>
                   <select
-                    value={s.siteMeta[`${mapId}:${site.id}`] ?? 1}
+                    value={s.siteMeta[`${map.id}:${site.id}`] ?? 1}
                     onChange={(e) =>
                       setSettings((x) => ({
                         ...x,
-                        siteMeta: { ...x.siteMeta, [`${mapId}:${site.id}`]: Number(e.target.value) },
+                        siteMeta: { ...x.siteMeta, [`${map.id}:${site.id}`]: Number(e.target.value) },
                       }))
                     }
                   >
@@ -186,7 +236,7 @@ export default function SetupView({ state, setState }: ViewProps) {
           />
         </div>
         <div className="rule-row">
-          <span>Stay after they lose</span>
+          <span>Stay after they lose it once</span>
           <input
             type="number"
             step={0.05}
@@ -194,6 +244,17 @@ export default function SetupView({ state, setState }: ViewProps) {
             max={1}
             value={s.repeatAfterDefLoss}
             onChange={(e) => setSettings((x) => ({ ...x, repeatAfterDefLoss: clamp01(e.target.value) }))}
+          />
+        </div>
+        <div className="rule-row">
+          <span>Stay after losing it twice in a row</span>
+          <input
+            type="number"
+            step={0.05}
+            min={0}
+            max={1}
+            value={s.repeatAfterDefLoss2}
+            onChange={(e) => setSettings((x) => ({ ...x, repeatAfterDefLoss2: clamp01(e.target.value) }))}
           />
         </div>
         <div className="rule-row">

@@ -16,7 +16,8 @@ const site = (floor: string, name: string): BombSite => ({
   floor,
 });
 
-// Maps and sites are editable in-app; this is only the starting pool.
+// Starting pool. Site names and extra maps are editable in Setup (stored as overrides by map id);
+// site ids never change on rename, so logged rounds stay attached.
 export const MAPS: GameMap[] = [
   {
     id: "bank",
@@ -99,6 +100,17 @@ export const MAPS: GameMap[] = [
     ],
   },
   {
+    // Placeholder names — rename to the real sites in Setup → Maps.
+    id: "nighthaven-labs",
+    name: "Nighthaven Labs",
+    sites: [
+      site("2F", "Top floor site"),
+      site("1F", "Ground floor site A"),
+      site("1F", "Ground floor site B"),
+      site("B", "Basement site"),
+    ],
+  },
+  {
     id: "outback",
     name: "Outback",
     sites: [
@@ -139,3 +151,11 @@ export const MAPS: GameMap[] = [
     ],
   },
 ];
+
+/** Built-in maps with the user's edits applied, plus any maps the user added. */
+export function resolveMaps(custom: GameMap[] = []): GameMap[] {
+  const byId = new Map(custom.map((m) => [m.id, m]));
+  const merged = MAPS.map((m) => byId.get(m.id) ?? m);
+  const extra = custom.filter((m) => !MAPS.some((b) => b.id === m.id));
+  return [...merged, ...extra].sort((a, b) => a.name.localeCompare(b.name));
+}

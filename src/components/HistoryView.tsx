@@ -1,6 +1,5 @@
-import { MAPS } from "../data/maps";
 import { baseRate } from "../lib/model";
-import { mapById, opName, pct, siteName, type ViewProps } from "./common";
+import { mapById, mapsOf, opName, pct, siteName, type ViewProps } from "./common";
 
 export default function HistoryView({ state, setState }: ViewProps) {
   const { logs, players } = state;
@@ -13,7 +12,8 @@ export default function HistoryView({ state, setState }: ViewProps) {
     return { w: xs.filter((l) => l.won).length, n: xs.length };
   };
 
-  const played = MAPS.filter((m) => logs.some((l) => l.mapId === m.id));
+  const maps = mapsOf(state);
+  const played = maps.filter((m) => logs.some((l) => l.mapId === m.id));
 
   return (
     <section>
@@ -82,8 +82,8 @@ export default function HistoryView({ state, setState }: ViewProps) {
                   <span className={`dot ${l.won ? "w" : "l"}`} />
                   <div className="log-main">
                     <div>
-                      {mapById(l.mapId)?.name} · R{l.round} · {l.side === "attack" ? "ATK" : "DEF"} ·{" "}
-                      {siteName(l.mapId, l.siteId)}
+                      {mapById(maps, l.mapId)?.name ?? l.mapId} · R{l.round} · {l.side === "attack" ? "ATK" : "DEF"} ·{" "}
+                      {siteName(maps, l.mapId, l.siteId)}
                       {l.source === "import" && <span className="muted small"> · imported</span>}
                     </div>
                     <div className="muted small">

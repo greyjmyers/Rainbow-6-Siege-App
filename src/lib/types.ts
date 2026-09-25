@@ -1,3 +1,4 @@
+import type { GameMap } from "../data/maps";
 import type { Role, Side } from "../data/operators";
 
 /** 0 = refuses to play it, 1–5 = comfort. Missing = unrated. */
@@ -50,6 +51,8 @@ export interface Settings {
   /** Prior belief that defenders stay on the same site after winning / losing a round. */
   repeatAfterDefWin: number;
   repeatAfterDefLoss: number;
+  /** ...after losing the same site two or more rounds in a row. */
+  repeatAfterDefLoss2: number;
   /** "mapId:siteId" → how often that site gets picked (SITE_META weights). Missing = normal. */
   siteMeta: Record<string, number>;
   /** Odds multiplier on a repeat when the defenders show the same operators as last round. */
@@ -77,6 +80,8 @@ export interface LiveMatch {
 export interface AppState {
   version: 1;
   players: Player[];
+  /** Edited built-in maps (same id) and user-added maps. */
+  maps?: GameMap[];
   logs: RoundLog[];
   settings: Settings;
   match: LiveMatch | null;
