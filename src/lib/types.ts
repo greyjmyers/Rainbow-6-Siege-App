@@ -1,0 +1,69 @@
+import type { Role, Side } from "../data/operators";
+
+/** 0 = refuses to play it, 1–5 = comfort. Missing = unrated. */
+export type Comfort = 0 | 1 | 2 | 3 | 4 | 5;
+
+export interface Player {
+  id: string;
+  name: string;
+  /** Ubisoft name, kept for a future stats import. */
+  ubisoftName?: string;
+  comfort: Record<string, Comfort>;
+}
+
+/** A lineup slot: a known squad member, or null for a random teammate. */
+export interface Pick {
+  playerId: string | null;
+  opId: string;
+}
+
+export interface RoundLog {
+  id: string;
+  ts: number;
+  matchId: string;
+  mapId: string;
+  side: Side;
+  round: number;
+  /** Site played. On attack this is where the defenders set up (fill in after the round). */
+  siteId?: string;
+  picks: Pick[];
+  won: boolean;
+}
+
+export interface CompRule {
+  role: Role;
+  min: number;
+  /** Logit penalty per missing operator (0.35 ≈ −8–9% win chance near 50%). */
+  penalty: number;
+}
+
+export interface Settings {
+  rules: Record<Side, CompRule[]>;
+  /** "mapId:siteId" → extra minimums for that site, e.g. two hard breachers. */
+  siteRules: Record<string, CompRule[]>;
+  /** Prior belief that defenders stay on the same site after winning / losing a round. */
+  repeatAfterDefWin: number;
+  repeatAfterDefLoss: number;
+}
+
+export interface LiveMatch {
+  id: string;
+  mapId: string;
+  side: Side;
+  round: number;
+  /** Up to five slots; null = random / not in the squad list. */
+  slots: (string | null)[];
+  bans: string[];
+  /** slot index → locked operator id */
+  locks: Record<number, string>;
+  /** Defense: the site we chose. Attack: unknown until the round ends. */
+  siteId?: string;
+}
+
+export interface AppState {
+  version: 1;
+  players: Player[];
+  logs: RoundLog[];
+  settings: Settings;
+  match: LiveMatch | null;
+}
