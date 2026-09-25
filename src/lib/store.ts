@@ -3,6 +3,15 @@ import type { AppState, Settings } from "./types";
 
 const KEY = "prepphase:v1";
 
+// Sites that are rarely picked in ranked. Everything else defaults to "normal"; edit in Setup.
+const RARE = 0.3;
+const DEFAULT_SITE_META: Record<string, number> = {
+  "bank:open-area-staff-room": RARE,
+  "border:bathroom-tellers": RARE,
+  "clubhouse:bar-stage": RARE,
+  "kafe:kitchen-service-kitchen-cooking": RARE,
+};
+
 export const DEFAULT_SETTINGS: Settings = {
   rules: {
     attack: [
@@ -23,6 +32,8 @@ export const DEFAULT_SETTINGS: Settings = {
   repeatAfterDefWin: 0.6,
   repeatAfterDefLoss: 0.3,
   importWeight: 0.4,
+  siteMeta: DEFAULT_SITE_META,
+  sameOpsOdds: 3,
 };
 
 export const emptyState = (): AppState => ({

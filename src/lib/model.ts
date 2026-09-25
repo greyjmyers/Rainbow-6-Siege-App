@@ -1,5 +1,5 @@
 import type { Side } from "../data/operators";
-import type { Comfort, Player, RoundLog, Settings } from "./types";
+import type { Comfort, Player, RoundLog, SameOps, Settings } from "./types";
 
 /**
  * Win-chance model.
@@ -20,6 +20,15 @@ import type { Comfort, Player, RoundLog, Settings } from "./types";
 export const PRIOR_WEIGHT = 8; // "pseudo-rounds" of belief in each prior
 export const LINEUP_WEIGHT = 0.5;
 export const DEFAULT_IMPORT_WEIGHT = 0.4;
+/** Pseudo-rounds of belief in the site popularity settings before our own logs take over. */
+export const SITE_META_STRENGTH = 8;
+
+export const SITE_META = [
+  { label: "Main", weight: 2 },
+  { label: "Normal", weight: 1 },
+  { label: "Rare", weight: 0.3 },
+  { label: "Never", weight: 0 },
+] as const;
 
 // Comfort → prior win rate on that operator. Unrated sits just below neutral.
 const COMFORT_PRIOR: Record<Comfort, number> = {
@@ -147,22 +156,29 @@ export function predictSites(
   settings: Settings,
   mapId: string,
   siteIds: string[],
-  prev?: { siteId: string; defendersWon: boolean },
+  prev?: { siteId: string; defendersWon: boolean; sameOps?: SameOps },
 ): Record<string, number> {
+  // Prior: how popular each site is on this map, spread over SITE_META_STRENGTH pseudo-rounds.
+  let meta = siteIds.map((id) => settings.siteMeta[`${mapId}:${id}`] ?? 1);
+  if (meta.every((w) => w === 0)) meta = meta.map(() => 1);
+  const metaTotal = meta.reduce((a, b) => a + b, 0);
   const counts: Record<string, number> = {};
-  for (const id of siteIds) counts[id] = 1; // Dirichlet(1) prior
+  siteIds.forEach((id, i) => (counts[id] = (SITE_META_STRENGTH * meta[i]) / metaTotal));
   for (const l of logs) {
     if (l.side === "attack" && l.mapId === mapId && l.siteId && l.siteId in counts) {
       counts[l.siteId] += logWeight(l, settings.importWeight);
     }
   }
-  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  const total = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
   const freq: Record<string, number> = {};
   for (const id of siteIds) freq[id] = counts[id] / total;
 
   if (!prev || !(prev.siteId in freq)) return freq;
 
-  const pRepeat = repeatRate(logs, settings, prev.defendersWon);
+  let pRepeat = repeatRate(logs, settings, prev.defendersWon);
+  // Same defender operators as last round is a strong run-it-back tell; a full swap is the opposite.
+  if (prev.sameOps === "same") pRepeat = sigmoid(logit(pRepeat) + Math.log(settings.sameOpsOdds));
+  if (prev.sameOps === "changed") pRepeat = sigmoid(logit(pRepeat) - Math.log(settings.sameOpsOdds));
   const othersMass = 1 - freq[prev.siteId];
   const out: Record<string, number> = {};
   for (const id of siteIds) {

@@ -143,3 +143,5 @@ input[type="number"] { width: 72px; }
 .rule-row > span { flex: 1; }
 .rule-row label { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
 .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.same-ops { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 10px; }
+.seg.small button { padding: 6px 10px; font-size: 13px; }

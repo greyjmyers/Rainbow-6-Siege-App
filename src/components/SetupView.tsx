@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { MAPS } from "../data/maps";
 import { ROLE_LABELS, type Role, type Side } from "../data/operators";
+import { SITE_META } from "../lib/model";
 import { DEFAULT_SETTINGS, emptyState, parseState } from "../lib/store";
 import type { CompRule, Settings } from "../lib/types";
 import type { ViewProps } from "./common";
@@ -95,8 +96,11 @@ export default function SetupView({ state, setState }: ViewProps) {
       </div>
 
       <div className="card">
-        <h3>Site-specific needs</h3>
-        <p className="hint">Override a minimum for one site — e.g. a site that needs two hard breachers.</p>
+        <h3>Sites</h3>
+        <p className="hint">
+          How often each site gets picked (your starting belief for attack predictions — logged rounds refine it), and
+          any site that needs more than the default, e.g. two hard breachers.
+        </p>
         <select value={mapId} onChange={(e) => setMapId(e.target.value)}>
           {MAPS.map((m) => (
             <option key={m.id} value={m.id}>
@@ -108,6 +112,7 @@ export default function SetupView({ state, setState }: ViewProps) {
           <thead>
             <tr>
               <th>Site</th>
+              <th>Picked</th>
               <th>Hard breach</th>
               <th>Anti-breach</th>
             </tr>
@@ -117,6 +122,23 @@ export default function SetupView({ state, setState }: ViewProps) {
               <tr key={site.id}>
                 <td>
                   <b>{site.floor}</b> {site.name}
+                </td>
+                <td>
+                  <select
+                    value={s.siteMeta[`${mapId}:${site.id}`] ?? 1}
+                    onChange={(e) =>
+                      setSettings((x) => ({
+                        ...x,
+                        siteMeta: { ...x.siteMeta, [`${mapId}:${site.id}`]: Number(e.target.value) },
+                      }))
+                    }
+                  >
+                    {SITE_META.map((o) => (
+                      <option key={o.label} value={o.weight}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
                 </td>
                 {(
                   [
@@ -172,6 +194,19 @@ export default function SetupView({ state, setState }: ViewProps) {
             max={1}
             value={s.repeatAfterDefLoss}
             onChange={(e) => setSettings((x) => ({ ...x, repeatAfterDefLoss: clamp01(e.target.value) }))}
+          />
+        </div>
+        <div className="rule-row">
+          <span>Same ops as last round → repeat odds ×</span>
+          <input
+            type="number"
+            step={0.5}
+            min={1}
+            max={20}
+            value={s.sameOpsOdds}
+            onChange={(e) =>
+              setSettings((x) => ({ ...x, sameOpsOdds: Math.min(20, Math.max(1, Number(e.target.value) || 1)) }))
+            }
           />
         </div>
       </div>

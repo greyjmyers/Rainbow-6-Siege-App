@@ -86,10 +86,10 @@ function LiveMatchView({ state, setState, m }: ViewProps & { m: LiveMatch }) {
     if (m.side !== "attack") return null;
     const prev =
       prevLog && prevLog.side === "attack" && prevLog.siteId
-        ? { siteId: prevLog.siteId, defendersWon: !prevLog.won }
+        ? { siteId: prevLog.siteId, defendersWon: !prevLog.won, sameOps: m.sameOps }
         : undefined;
     return predictSites(logs, settings, m.mapId, siteIds, prev);
-  }, [m.side, m.mapId, logs, settings, prevLog, siteIds.join()]);
+  }, [m.side, m.mapId, m.sameOps, logs, settings, prevLog, siteIds.join()]);
 
   const common = {
     side: m.side,
@@ -134,6 +134,7 @@ function LiveMatchView({ state, setState, m }: ViewProps & { m: LiveMatch }) {
       siteId: m.side === "defense" ? defenseSite : siteId,
       picks: best.slots.map((s) => ({ playerId: s.playerId, opId: s.opId })),
       won,
+      sameOps: m.side === "attack" ? m.sameOps : undefined,
     };
     const nextRound = m.round + 1;
     // Sides swap at halftime; overtime varies by playlist, so it's left to the side toggle.
@@ -147,6 +148,7 @@ function LiveMatchView({ state, setState, m }: ViewProps & { m: LiveMatch }) {
         side: swap ? (m.side === "attack" ? "defense" : "attack") : m.side,
         siteId: swap ? undefined : s.match.siteId,
         locks: swap ? {} : s.match.locks,
+        sameOps: undefined,
       },
     }));
     setPending(null);
@@ -198,6 +200,24 @@ function LiveMatchView({ state, setState, m }: ViewProps & { m: LiveMatch }) {
                 <span className="bar-val">{pct(p)}</span>
               </div>
             ))}
+          {prevLog?.siteId && prevLog.side === "attack" && (
+            <div className="same-ops">
+              <span className="small muted">Their ops vs last round</span>
+              <div className="seg small">
+                {(
+                  [
+                    ["same", "Same"],
+                    ["changed", "Changed"],
+                    [undefined, "Not sure"],
+                  ] as const
+                ).map(([val, label]) => (
+                  <button key={label} className={m.sameOps === val ? "on attack" : ""} onClick={() => update({ sameOps: val })}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <p className="hint">
             {prevLog?.siteId && prevLog.side === "attack"
               ? `Last round was ${siteName(m.mapId, prevLog.siteId)} and they ${prevLog.won ? "lost" : "won"} it.`

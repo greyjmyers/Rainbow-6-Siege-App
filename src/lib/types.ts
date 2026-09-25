@@ -17,6 +17,8 @@ export interface Pick {
   opId: string;
 }
 
+export type SameOps = "same" | "changed";
+
 export interface RoundLog {
   id: string;
   ts: number;
@@ -28,6 +30,8 @@ export interface RoundLog {
   siteId?: string;
   picks: Pick[];
   won: boolean;
+  /** Attack: did the defenders' operators look the same as the previous round? */
+  sameOps?: SameOps;
   /** Missing = logged by hand in the app. Imported rounds count for less (see Settings.importWeight). */
   source?: "manual" | "import";
 }
@@ -46,6 +50,10 @@ export interface Settings {
   /** Prior belief that defenders stay on the same site after winning / losing a round. */
   repeatAfterDefWin: number;
   repeatAfterDefLoss: number;
+  /** "mapId:siteId" → how often that site gets picked (SITE_META weights). Missing = normal. */
+  siteMeta: Record<string, number>;
+  /** Odds multiplier on a repeat when the defenders show the same operators as last round. */
+  sameOpsOdds: number;
   /** How much one imported round counts relative to a hand-logged one (0–1). */
   importWeight: number;
 }
@@ -60,6 +68,8 @@ export interface LiveMatch {
   bans: string[];
   /** slot index → locked operator id */
   locks: Record<number, string>;
+  /** Attack: what the defenders' operators look like vs. last round (from drones / kill feed). */
+  sameOps?: SameOps;
   /** Defense: the site we chose. Attack: unknown until the round ends. */
   siteId?: string;
 }

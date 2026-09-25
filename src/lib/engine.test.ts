@@ -66,10 +66,30 @@ describe("playerOpEdge", () => {
 
 describe("predictSites", () => {
   const sites = ["a", "b", "c", "d"];
-  it("is uniform with no history", () => {
-    const p = predictSites([], DEFAULT_SETTINGS, "bank", sites);
+  it("is uniform with no history or site settings", () => {
+    const p = predictSites([], { ...DEFAULT_SETTINGS, siteMeta: {} }, "bank", sites);
     for (const id of sites) expect(p[id]).toBeCloseTo(0.25);
   });
+  it("starts from site popularity settings", () => {
+    const settings = { ...DEFAULT_SETTINGS, siteMeta: { "bank:d": 0, "bank:a": 2 } };
+    const p = predictSites([], settings, "bank", sites);
+    expect(p.d).toBe(0);
+    expect(p.a).toBeCloseTo(0.5);
+    expect(p.b).toBeCloseTo(0.25);
+  });
+
+  it("same defender ops push toward a repeat, changed ops away from it", () => {
+    const base = predictSites([], DEFAULT_SETTINGS, "bank", sites, { siteId: "b", defendersWon: false });
+    const same = predictSites([], DEFAULT_SETTINGS, "bank", sites, { siteId: "b", defendersWon: false, sameOps: "same" });
+    const changed = predictSites([], DEFAULT_SETTINGS, "bank", sites, {
+      siteId: "b",
+      defendersWon: false,
+      sameOps: "changed",
+    });
+    expect(same.b).toBeGreaterThan(base.b);
+    expect(changed.b).toBeLessThan(base.b);
+  });
+
   it("leans toward a repeat after the defenders win", () => {
     const p = predictSites([], DEFAULT_SETTINGS, "bank", sites, { siteId: "b", defendersWon: true });
     expect(p.b).toBeCloseTo(DEFAULT_SETTINGS.repeatAfterDefWin);
