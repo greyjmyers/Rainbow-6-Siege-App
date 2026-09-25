@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { baseRate, playerOpEdge, predictSites, siteLossStreak } from "./model";
 import { optimize } from "./optimizer";
-import { DEFAULT_SETTINGS } from "./store";
+import { DEFAULT_SETTINGS, findPlayerByName } from "./store";
 import type { Player, RoundLog } from "./types";
 
 const player = (id: string, comfort: Player["comfort"]): Player => ({ id, name: id, comfort });
@@ -203,5 +203,14 @@ describe("run-it-back after losses (Nighthaven Labs, 25 Sep)", () => {
       lossStreak: 1,
     });
     expect(learned.g1).toBeGreaterThan(prior.g1);
+  });
+});
+
+describe("findPlayerByName", () => {
+  it("matches a scoreboard name to a gamertag or Ubisoft name, ignoring case", () => {
+    const me: Player = { id: "me", name: "Grey", gamertag: "GOON X Tsunamii", ubisoftName: "keister-sunday", comfort: {} };
+    expect(findPlayerByName([me], "GOON x Tsunamii")?.id).toBe("me");
+    expect(findPlayerByName([me], "Keister-Sunday")?.id).toBe("me");
+    expect(findPlayerByName([me], "junksweat")).toBeUndefined();
   });
 });

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { AppState, Settings } from "./types";
+import type { AppState, Player, Settings } from "./types";
 
 const KEY = "prepphase:v1";
 
@@ -78,4 +78,12 @@ export function useAppState() {
     }
   }, [state]);
   return [state, setState] as const;
+}
+
+const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
+
+/** Match a scoreboard name to a squad member by in-game name or Ubisoft name, ignoring case and spacing. */
+export function findPlayerByName(players: Player[], name: string): Player | undefined {
+  const n = norm(name);
+  return players.find((p) => [p.gamertag, p.ubisoftName, p.name].some((x) => x && norm(x) === n));
 }

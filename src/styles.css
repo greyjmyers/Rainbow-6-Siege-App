@@ -148,3 +148,4 @@ input[type="number"] { width: 72px; }
 .site-edit { display: grid; gap: 6px; margin: 10px 0; }
 .site-edit-row { display: grid; grid-template-columns: 56px 1fr; gap: 6px; }
 .add-row select { flex: 1; }
+.name-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }

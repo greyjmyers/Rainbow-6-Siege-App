@@ -60,12 +60,25 @@ export default function SquadView({ state, setState }: ViewProps) {
             </button>
             {openId === p.id && (
               <>
-                <label className="label">Ubisoft name (for a future stats import)</label>
-                <input
-                  value={p.ubisoftName ?? ""}
-                  onChange={(e) => patch(p.id, (x) => ({ ...x, ubisoftName: e.target.value }))}
-                  placeholder="optional"
-                />
+                <div className="name-pair">
+                  <div>
+                    <label className="label">In-game name</label>
+                    <input
+                      value={p.gamertag ?? ""}
+                      onChange={(e) => patch(p.id, (x) => ({ ...x, gamertag: e.target.value }))}
+                      placeholder="Gamertag / PSN ID"
+                    />
+                  </div>
+                  <div>
+                    <label className="label">Ubisoft name</label>
+                    <input
+                      value={p.ubisoftName ?? ""}
+                      onChange={(e) => patch(p.id, (x) => ({ ...x, ubisoftName: e.target.value }))}
+                      placeholder="tracker.gg profile"
+                    />
+                  </div>
+                </div>
+                <p className="hint">Both are used to match you on imported scoreboards (case doesn't matter).</p>
                 {(["attack", "defense"] as Side[]).map((side) => (
                   <div key={side}>
                     <div className="label">{side === "attack" ? "Attackers" : "Defenders"}</div>

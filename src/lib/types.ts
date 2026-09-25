@@ -7,8 +7,10 @@ export type Comfort = 0 | 1 | 2 | 3 | 4 | 5;
 export interface Player {
   id: string;
   name: string;
-  /** Ubisoft name, kept for a future stats import. */
+  /** Ubisoft account name — what tracker.gg profile URLs use. */
   ubisoftName?: string;
+  /** Name shown in matches and on tracker scoreboards (Xbox gamertag / PSN ID on console). */
+  gamertag?: string;
   comfort: Record<string, Comfort>;
 }
 
