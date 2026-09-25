@@ -28,6 +28,8 @@ export interface RoundLog {
   siteId?: string;
   picks: Pick[];
   won: boolean;
+  /** Missing = logged by hand in the app. Imported rounds count for less (see Settings.importWeight). */
+  source?: "manual" | "import";
 }
 
 export interface CompRule {
@@ -44,6 +46,8 @@ export interface Settings {
   /** Prior belief that defenders stay on the same site after winning / losing a round. */
   repeatAfterDefWin: number;
   repeatAfterDefLoss: number;
+  /** How much one imported round counts relative to a hand-logged one (0–1). */
+  importWeight: number;
 }
 
 export interface LiveMatch {

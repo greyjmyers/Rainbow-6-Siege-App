@@ -177,6 +177,27 @@ export default function SetupView({ state, setState }: ViewProps) {
       </div>
 
       <div className="card">
+        <h3>Imported history</h3>
+        <p className="hint">
+          Rounds pulled from match history are weaker evidence than rounds you log live with the exact lineup. At 0.4,
+          five imported rounds count about as much as two logged ones.
+        </p>
+        <div className="rule-row">
+          <span>Weight of one imported round</span>
+          <input
+            type="number"
+            step={0.1}
+            min={0}
+            max={1}
+            value={s.importWeight}
+            onChange={(e) =>
+              setSettings((x) => ({ ...x, importWeight: Math.min(1, Math.max(0, Number(e.target.value) || 0)) }))
+            }
+          />
+        </div>
+      </div>
+
+      <div className="card">
         <h3>Data</h3>
         <p className="hint">Everything lives on this device. Export to back up or hand the file to a squadmate.</p>
         <div className="btn-row">

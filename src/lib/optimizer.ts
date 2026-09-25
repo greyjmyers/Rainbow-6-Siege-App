@@ -79,8 +79,8 @@ export function optimize(input: OptimizeInput): Lineup[] {
 
   // Expected base rate across possible sites.
   const baseLogit = siteEntries.length
-    ? siteEntries.reduce((acc, [siteId, p]) => acc + p * logit(baseRate(logs, side, mapId, siteId).p), 0)
-    : logit(baseRate(logs, side, mapId).p);
+    ? siteEntries.reduce((acc, [siteId, p]) => acc + p * logit(baseRate(logs, side, mapId, siteId, settings.importWeight).p), 0)
+    : logit(baseRate(logs, side, mapId, undefined, settings.importWeight).p);
 
   // Per-slot candidate lists: best by personal edge, plus the best filler for every required role.
   const allRoles = new Set(siteRules.flatMap((s) => s.rules.map((r) => r.role)));
@@ -90,7 +90,7 @@ export function optimize(input: OptimizeInput): Lineup[] {
     const scored = pool
       .filter((o) => !player || player.comfort[o.id] !== 0 || o.id === locked)
       .map((o) => {
-        const e = playerOpEdge(logs, player, side, o.id);
+        const e = playerOpEdge(logs, player, side, o.id, settings.importWeight);
         const covers = o.roles.filter((r) => allRoles.has(r) || r === "flex").length;
         return { op: o, edge: e.edge, n: e.n, covers };
       })

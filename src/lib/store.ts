@@ -22,6 +22,7 @@ export const DEFAULT_SETTINGS: Settings = {
   siteRules: {},
   repeatAfterDefWin: 0.6,
   repeatAfterDefLoss: 0.3,
+  importWeight: 0.4,
 };
 
 export const emptyState = (): AppState => ({

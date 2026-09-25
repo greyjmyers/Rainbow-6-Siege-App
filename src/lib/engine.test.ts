@@ -27,6 +27,23 @@ describe("baseRate", () => {
   });
 });
 
+describe("imported rounds", () => {
+  it("count for importWeight of a logged round", () => {
+    const logged = [round({ won: true }), round({ won: true })];
+    const imported = Array.from({ length: 5 }, () => round({ won: true, source: "import" }));
+    // 5 × 0.4 = 2 rounds of evidence, same as two logged wins.
+    expect(baseRate(imported, "attack", "bank", undefined, 0.4).p).toBeCloseTo(
+      baseRate(logged, "attack", "bank", undefined, 0.4).p,
+    );
+    expect(baseRate(imported, "attack", "bank", undefined, 0.4).n).toBe(5);
+  });
+
+  it("are ignored at weight 0", () => {
+    const imported = Array.from({ length: 10 }, () => round({ won: true, source: "import" }));
+    expect(baseRate(imported, "attack", "bank", undefined, 0).p).toBeCloseTo(0.5);
+  });
+});
+
 describe("playerOpEdge", () => {
   it("prefers higher-comfort operators with no logs", () => {
     const p = player("a", { thermite: 5, hibana: 1 });

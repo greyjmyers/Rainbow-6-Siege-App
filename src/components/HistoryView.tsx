@@ -58,10 +58,10 @@ export default function HistoryView({ state, setState }: ViewProps) {
                         <td>
                           <b>{s.floor}</b> {s.name}
                         </td>
-                        <td title={`Estimated ${pct(baseRate(logs, "attack", m.id, s.id).p)}`}>
+                        <td title={`Estimated ${pct(baseRate(logs, "attack", m.id, s.id, state.settings.importWeight).p)}`}>
                           {a.n ? `${a.w}-${a.n - a.w}` : "—"}
                         </td>
-                        <td title={`Estimated ${pct(baseRate(logs, "defense", m.id, s.id).p)}`}>
+                        <td title={`Estimated ${pct(baseRate(logs, "defense", m.id, s.id, state.settings.importWeight).p)}`}>
                           {d.n ? `${d.w}-${d.n - d.w}` : "—"}
                         </td>
                       </tr>
@@ -84,6 +84,7 @@ export default function HistoryView({ state, setState }: ViewProps) {
                     <div>
                       {mapById(l.mapId)?.name} · R{l.round} · {l.side === "attack" ? "ATK" : "DEF"} ·{" "}
                       {siteName(l.mapId, l.siteId)}
+                      {l.source === "import" && <span className="muted small"> · imported</span>}
                     </div>
                     <div className="muted small">
                       {l.picks.map((p) => `${playerName(p.playerId)}: ${opName(p.opId)}`).join(" · ")}

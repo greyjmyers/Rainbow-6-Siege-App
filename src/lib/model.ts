@@ -11,10 +11,15 @@ import type { Comfort, Player, RoundLog, Settings } from "./types";
  * Every rate is a Beta-smoothed estimate that shrinks toward its parent
  * (site → map → side → 50%), so a single lucky round can't swing the numbers.
  * With no logged rounds the output is driven entirely by comfort ratings.
+ *
+ * Imported rounds (e.g. from match history) are weaker evidence than rounds
+ * logged live with the exact lineup, so each one counts as `importWeight` of
+ * a round. Unknown fields stay unknown — they are never filled with guesses.
  */
 
 export const PRIOR_WEIGHT = 8; // "pseudo-rounds" of belief in each prior
 export const LINEUP_WEIGHT = 0.5;
+export const DEFAULT_IMPORT_WEIGHT = 0.4;
 
 // Comfort → prior win rate on that operator. Unrated sits just below neutral.
 const COMFORT_PRIOR: Record<Comfort, number> = {
@@ -35,15 +40,25 @@ function shrink(prior: number, wins: number, n: number, k = PRIOR_WEIGHT) {
   return (prior * k + wins) / (k + n);
 }
 
-function tally(logs: RoundLog[]) {
-  let w = 0;
-  for (const l of logs) if (l.won) w++;
-  return { w, n: logs.length };
+export function logWeight(l: RoundLog, importWeight: number) {
+  return l.source === "import" ? importWeight : 1;
+}
+
+/** Weighted wins and rounds. */
+function tally(logs: RoundLog[], importWeight: number) {
+  let w = 0,
+    n = 0;
+  for (const l of logs) {
+    const k = logWeight(l, importWeight);
+    n += k;
+    if (l.won) w += k;
+  }
+  return { w, n };
 }
 
 export interface BaseRate {
   p: number;
-  /** Rounds that directly informed the most specific level. */
+  /** Rounds (unweighted count) that directly informed the most specific level. */
   n: number;
 }
 
@@ -52,19 +67,21 @@ export function baseRate(
   side: Side,
   mapId: string,
   siteId?: string,
+  importWeight = DEFAULT_IMPORT_WEIGHT,
 ): BaseRate {
   // Each level's prior comes only from rounds *outside* that level, so a round
   // is never counted twice on its way up the hierarchy.
   const sideLogs = logs.filter((l) => l.side === side);
-  const s = tally(sideLogs);
+  const s = tally(sideLogs, importWeight);
   const mapLogs = sideLogs.filter((l) => l.mapId === mapId);
-  const m = tally(mapLogs);
+  const m = tally(mapLogs, importWeight);
   const pOtherMaps = shrink(0.5, s.w - m.w, s.n - m.n);
-  if (!siteId) return { p: shrink(pOtherMaps, m.w, m.n), n: m.n };
+  if (!siteId) return { p: shrink(pOtherMaps, m.w, m.n), n: mapLogs.length };
 
-  const st = tally(mapLogs.filter((l) => l.siteId === siteId));
+  const siteLogs = mapLogs.filter((l) => l.siteId === siteId);
+  const st = tally(siteLogs, importWeight);
   const pOtherSites = shrink(pOtherMaps, m.w - st.w, m.n - st.n);
-  return { p: shrink(pOtherSites, st.w, st.n), n: st.n };
+  return { p: shrink(pOtherSites, st.w, st.n), n: siteLogs.length };
 }
 
 export function comfortPrior(player: Player | undefined, opId: string): number {
@@ -90,6 +107,7 @@ export function playerOpEdge(
   player: Player | undefined,
   side: Side,
   opId: string,
+  importWeight = DEFAULT_IMPORT_WEIGHT,
 ): Edge {
   const prior = comfortPrior(player, opId);
   if (!player) return { edge: logit(prior) - logit(RANDOM_PRIOR), p: prior, n: 0 };
@@ -97,23 +115,26 @@ export function playerOpEdge(
   let opW = 0,
     opN = 0,
     allW = 0,
-    allN = 0;
+    allN = 0,
+    opCount = 0;
   for (const l of logs) {
     if (l.side !== side) continue;
     const pick = l.picks.find((p) => p.playerId === player.id);
     if (!pick) continue;
-    allN++;
-    if (l.won) allW++;
+    const k = logWeight(l, importWeight);
+    allN += k;
+    if (l.won) allW += k;
     if (pick.opId === opId) {
-      opN++;
-      if (l.won) opW++;
+      opN += k;
+      if (l.won) opW += k;
+      opCount++;
     }
   }
   const pOverall = shrink(0.5, allW, allN);
   // The comfort prior is expressed relative to 50%, so re-anchor it on the player's baseline.
   const anchored = sigmoid(logit(pOverall) + logit(prior));
   const p = shrink(anchored, opW, opN);
-  return { edge: logit(p) - logit(pOverall), p, n: opN };
+  return { edge: logit(p) - logit(pOverall), p, n: opCount };
 }
 
 /**
@@ -132,7 +153,7 @@ export function predictSites(
   for (const id of siteIds) counts[id] = 1; // Dirichlet(1) prior
   for (const l of logs) {
     if (l.side === "attack" && l.mapId === mapId && l.siteId && l.siteId in counts) {
-      counts[l.siteId]++;
+      counts[l.siteId] += logWeight(l, settings.importWeight);
     }
   }
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
@@ -171,8 +192,9 @@ export function repeatRate(logs: RoundLog[], settings: Settings, defendersWon: b
       if (b.round !== a.round + 1) continue;
       // We lost the round on attack ⇔ the defenders won it.
       if (!a.won !== defendersWon) continue;
-      n++;
-      if (a.siteId === b.siteId) repeats++;
+      const k = Math.min(logWeight(a, settings.importWeight), logWeight(b, settings.importWeight));
+      n += k;
+      if (a.siteId === b.siteId) repeats += k;
     }
   }
   return shrink(prior, repeats, n, 5);
